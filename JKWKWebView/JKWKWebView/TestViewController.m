@@ -23,6 +23,7 @@
 @implementation TestViewController
 
 - (void)viewDidLoad {
+    
     [super viewDidLoad];
     
     self.view.backgroundColor = [UIColor yellowColor];
@@ -31,6 +32,12 @@
 
     self.webView = [[WKWebView alloc] initWithFrame:self.view.frame];
     [self.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"http://m.jd.com"]]];
+    // http://pay.ciotimes.com/index.php/Phone/ActivityCharacter/index
+    // http://m.jd.com
+    /**
+     获取 head 头里面的 meta的shareurl值
+     https://tps-test-app.99top.vip/index/groupbuy_detail?snm=534078445
+     */
     self.webView.navigationDelegate = self;
     self.webView.UIDelegate = self;
     //开了支持滑动返回（这行代码可以是侧滑返回webView的上一级，而不是根控制器 只针对侧滑有效）
@@ -47,9 +54,6 @@
     self.progresslayer = layer;
     
     [self.webView addObserver:self forKeyPath:@"estimatedProgress" options:NSKeyValueObservingOptionNew context:nil];
-   
-    
-    
 }
 
 #pragma mark 加载进度的监听
@@ -59,10 +63,13 @@
         
         self.progresslayer.opacity = 1;
         if ([change[@"new"] floatValue] < [change[@"old"] floatValue])
-        { return;
+        {
+            return;
             
         }
+        
         self.progresslayer.frame = CGRectMake(0, 0, self.view.bounds.size.width * [change[@"new"] floatValue], 3);
+        
         if ([change[@"new"] floatValue] == 1)
         {
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ self.progresslayer.opacity = 0;
@@ -71,7 +78,6 @@
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ self.progresslayer.frame = CGRectMake(0, 0, 0, 3);
                 
             });
-            
         }
         
     }else{
@@ -100,6 +106,13 @@
 // 页面加载完成之后调用
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation{//这里修改导航栏的标题，动态改变
     self.title = webView.title;
+    
+    // 获取html里面的head里面的meta值 0 是因为 shareUrl 在最前面，后面的shareUrl 1、2、3、4依次排序
+    [webView evaluateJavaScript:@"document.getElementsByName(\"shareUrl\")[0].content" completionHandler:^(id _Nullable response, NSError * _Nullable error) {
+        
+        NSLog(@"response: %@ error: %@", response, error);
+        
+    }];
 }
 // 页面加载失败时调用
 - (void)webView:(WKWebView *)webView didFailProvisionalNavigation:(WKNavigation *)navigation{
@@ -111,9 +124,23 @@
 }
 // 在收到响应后，决定是否跳转
 - (void)webView:(WKWebView *)webView decidePolicyForNavigationResponse:(WKNavigationResponse *)navigationResponse decisionHandler:(void (^)(WKNavigationResponsePolicy))decisionHandler{
+ 
     
-    NSLog(@"%@",webView);
-    NSLog(@"%@",navigationResponse);
+    //获取请求的url路径.
+    NSString *requestString = navigationResponse.response.URL.absoluteString;
+    NSLog(@"requestString:%@",requestString);
+    // 遇到要做出改变的字符串
+    NSString *subStr = @"";
+    if ([requestString rangeOfString:subStr].location != NSNotFound) {
+        NSLog(@"这个字符串中有subStr");
+        //回调的URL中如果含有百度，就直接返回，也就是关闭了webView界面
+        [self.navigationController  popViewControllerAnimated:YES];
+    }
+    
+    
+    NSLog(@"webView==%@",webView);
+    
+    NSLog(@"navigationResponse=%@",navigationResponse);
     
     WKNavigationResponsePolicy actionPolicy = WKNavigationResponsePolicyAllow;
     //这句是必须加上的，不然会异常
